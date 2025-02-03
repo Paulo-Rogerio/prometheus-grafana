@@ -1,0 +1,14 @@
+services:
+
+  app-python:
+    container_name: app-python
+    image: prgs/python:app
+    restart: unless-stopped
+    networks:
+      - metrics
+    ports:
+      - 3002:3002
+
+networks:
+  metrics:
+    driver: bridge

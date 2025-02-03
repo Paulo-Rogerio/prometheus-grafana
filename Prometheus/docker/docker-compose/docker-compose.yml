@@ -1,0 +1,140 @@
+services:
+
+  app-node:
+    container_name: app-node
+    image: prgs/node:app
+    restart: unless-stopped
+    networks:
+      - metrics
+    ports:
+      - 3001:3001
+
+  app-python:
+    container_name: app-python
+    image: prgs/python:app
+    restart: unless-stopped
+    networks:
+      - metrics
+    ports:
+      - 3002:3002
+
+  prometheus:
+    image: prom/prometheus
+    user: root
+    container_name: prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./data/monitoring/prometheus/config:/etc/prometheus
+      - ./data/monitoring/prometheus/data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'      
+    ports:
+      - 9090:9090
+    networks:
+      - metrics
+    depends_on:
+      - app-node
+      - app-python
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./data/monitoring/alertmanager/config:/etc/alertmanager
+      - ./data/monitoring/alertmanager/data:/alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    deploy:
+      mode: global
+    networks:
+      - metrics
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - 8585:8080
+    networks:
+      - metrics
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    user: postgres
+    container_name: postgres
+    ports:
+      - 5432:5432
+    networks:
+      - metrics      
+    environment:
+      POSTGRES_USER: grafana
+      POSTGRES_DB: grafana
+      POSTGRES_PASSWORD: grafana
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 scram-sha-256"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - ./data/postgresql/pgdata:/var/lib/postgresql/data      
+    command: |
+      postgres
+      -c wal_level=logical
+      -c hot_standby=on
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby_feedback=on
+      -c shared_preload_libraries=pg_stat_statements
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "grafana"]
+      interval: 3s
+      timeout: 6s
+      retries: 10
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    ports:
+      - 9187:9187
+    environment:
+      DATA_SOURCE_NAME: "postgresql://grafana:grafana@postgres:5432/grafana?sslmode=disable"
+    networks:
+      - metrics   
+    depends_on:
+      - postgres
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana    
+    user: "0:0"
+    environment:
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgres
+      GF_DATABASE_NAME: grafana
+      GF_DATABASE_USER: grafana
+      GF_DATABASE_PASSWORD: grafana
+      GF_DATABASE_SSL_MODE: disable
+    restart: unless-stopped
+    networks:
+      - metrics    
+    depends_on:
+      - postgres
+    ports:
+      - 3000:3000
+    volumes:
+      - ./data/monitoring/grafana/data:/var/lib/grafana
+      - ./data/monitoring/grafana/provisioning/:/etc/grafana/provisioning/      
+
+networks:
+  metrics:
+    driver: bridge

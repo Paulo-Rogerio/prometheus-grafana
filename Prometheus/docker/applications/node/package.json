@@ -1,0 +1,27 @@
+{
+  "name": "app-node-prometheus",
+  "version": "1.0.0",
+  "description": "App Metrics Prometheus",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Austin Cunningham",
+  "repository": {
+    "type": "git",
+    "url": "github.com/Paulo-Rogerio/app-node-prometheus.git"
+  },
+  "keywords": [
+    "express",
+    "prometheus",
+    "metrics",
+    "node",
+    "monitoring"
+  ],
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "express": "^4.21.2",
+    "express-prom-bundle": "^6.3.6",
+    "prom-client": "^14.0.1"
+  }
+}

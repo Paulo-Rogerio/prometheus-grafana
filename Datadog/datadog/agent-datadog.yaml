@@ -1,0 +1,161 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent
+  namespace: default
+spec:
+  minReadySeconds: 0
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 15%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: datadog-agent
+  template:
+    metadata:
+      labels:
+        app: datadog-agent
+      name: datadog-agent
+    spec:
+      serviceAccountName: datadog-agent
+      containers:
+      - image: datadog/agent:7
+        imagePullPolicy: Always
+        name: datadog-agent
+        ports:
+          - containerPort: 8125
+            name: dogstatsdport
+            protocol: UDP
+          - containerPort: 8126
+            hostPort: 8126
+            name: traceport
+            protocol: TCP
+        env:
+          - name: DD_API_KEY 
+            valueFrom:
+              secretKeyRef:
+                name: datadog-api-key
+                key: api-key
+          - name: DD_CLUSTER_AGENT_ENABLED
+            value: "true"
+          - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: datadog-auth-token
+                key: token
+          - name: DD_EXTRA_CONFIG_PROVIDERS
+            value: 'clusterchecks'          
+          - name: DD_CRI_SOCKET_PATH
+            value: /var/run/containerd/containerd.sock
+          - name: DOCKER_HOST
+            value: unix:///host/var/run/docker.sock
+          - name: KUBERNETES
+            value: "true"
+          - name: DD_HEALTH_PORT
+            value: "5555"
+          - name: DD_COLLECT_KUBERNETES_EVENTS
+            value: 'true'
+          - name: DD_LEADER_ELECTION
+            value: "false"
+          - name: DD_AC_EXCLUDE
+            value: "image:datadog/agent image:datadog/cluster-agent"
+          - name: DD_KUBERNETES_KUBELET_HOST
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
+          - {name: DOCKER_HOST, value: unix:///host/var/run/docker.sock}
+          - name: DD_APM_ENABLED
+            value: 'true'
+          - name: DD_APM_NON_LOCAL_TRAFFIC
+            value: 'true'
+          - name: DD_LOGS_ENABLED
+            value: 'true'
+          - name: DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL
+            value: 'true'
+          - name: DD_PROCESS_AGENT_ENABLED
+            value: 'true'
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+          - name: dockersocketdir
+            mountPath: /host/var/run
+          - name: containerdsocket
+            mountPath: /var/run/containerd/containerd.sock
+          - name: procdir 
+            mountPath: /host/proc
+            readOnly: true
+          - name: cgroups 
+            mountPath: /host/sys/fs/cgroup
+            readOnly: true
+          - name: s6-run 
+            mountPath: /var/run/s6
+          - name: kube-scheduler
+            mountPath: /conf.d/kube_scheduler.d
+          - name: var-run
+            mountPath: /host/var/run
+            readOnly: true
+          - name: pointdir
+            mountPath: /opt/datadog-agent/run
+          - name: logpodpath
+            mountPath: /var/log/pods
+          - name: logcontainerpath
+            mountPath: /var/lib/docker/containers
+          - name: passwd
+            mountPath: /etc/passwd
+            readOnly: true
+          - name: debugfs
+            mountPath: /sys/kernel/debug
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+      volumes:
+        - name: dockersocketdir
+          hostPath: 
+            path: /var/run
+        - name: procdir
+          hostPath: 
+            path: /proc
+        - name: cgroups
+          hostPath: 
+            path: /sys/fs/cgroup
+        - name: s6-run
+          emptyDir: {}
+        - name: containerdsocket
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
+        - name: pointdir
+          hostPath:
+            path: /var/lib/datadog-agent/logs
+        - name: logpodpath
+          hostPath:
+            path: /var/log/pods
+        - name: logcontainerpath
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: passwd
+          hostPath:
+            path: /etc/passwd
+        - name: var-run
+          hostPath:
+            path: /var/run
+        - name: kube-scheduler
+          configMap:
+            name: kube-scheduler
+            items:
+              - key: auto_conf.yaml
+                path: auto_conf.yaml

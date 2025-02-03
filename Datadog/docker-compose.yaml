@@ -1,0 +1,68 @@
+version: "3.0"
+
+services:
+  service-web:
+    build: ./service-web
+    container_name: service-web
+    volumes: 
+      - ${PWD}/service-web/src/:/app/
+    environment:
+      SERVICE_HOST: service-a
+    ports:
+      - "8000:8000"
+    networks:
+      - service
+  service-a:
+    build: ./service-a
+    container_name: service-a
+    volumes: 
+      - ${PWD}/service-a/src/:/app/
+    environment:
+      SERVICE_HOST: service-b
+    networks:
+      - service
+  service-b:
+    build: ./service-b
+    container_name: service-b
+    volumes: 
+      - ${PWD}/service-b/src/:/app/
+    environment:
+      SERVICE_HOST: service-c
+    networks:
+      - service
+  service-c:
+    build: ./service-c
+    container_name: service-c
+    volumes: 
+      - ${PWD}/service-c/src/:/app/
+    environment:
+      SERVICE_HOST: service-db
+    networks:
+      - service
+  service-db:
+    build: ./service-db
+    container_name: service-db
+    environment: 
+      DB_HOST: db
+      DB_USER: datadog
+      DB_PASSWORd: datadog
+      DB_NAME: chat
+    volumes: 
+      - ${PWD}/service-db/:/app/
+    networks:
+      - service
+      - db
+  db:
+    build: ./db
+    container_name: db     
+    volumes:
+      - data:/var/lib/mysql
+    networks:
+      - db
+
+volumes:
+  data:
+
+networks:
+  db:
+  service:

@@ -1,0 +1,5 @@
+Prometheus/docker/docker-compose/data/postgresql/pgdata
+Prometheus/docker/docker-compose/data/monitoring/alertmanager/data
+Prometheus/docker/docker-compose/data/monitoring/grafana/data
+Prometheus/docker/docker-compose/data/monitoring/prometheus/data
+Prometheus/kubernetes
