@@ -57,6 +57,17 @@ services:
     networks:
       - metrics
 
+  app-prometheusbot:
+    container_name: app-prometheusbot
+    image: prgs/telegrambot:app
+    restart: unless-stopped
+    volumes:
+      - ./data/monitoring/alertmanager/telegrambot/config.yaml:/config.yaml
+    networks:
+      - metrics
+    ports:
+      - 9087:9087
+
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
     container_name: cadvisor

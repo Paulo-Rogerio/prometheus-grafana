@@ -1,7 +1,38 @@
+global:
+  resolve_timeout: 5m
 route:
-    receiver: 'pager'
+  group_by: ['alertname']
+  group_wait: 30s
+  group_interval: 30s
+  repeat_interval: 5m
+  receiver: 'web.hook'
+
+  routes:
+  - receiver: 'alertPostgresql'
+    match:
+      team: postgresql
+      
+  - receiver: 'alertNode'
+    match:
+      team: node
 
 receivers:
-    - name: 'pager'
-      webhook_configs:
-      - url: https://ngrok.io # replace with your PagerTree webhook url
+- name: 'web.hook'
+  webhook_configs:
+  - url: 'http://app-prometheusbot:9087/alert/<GroupID>'
+
+- name: 'alertPostgresql'
+  webhook_configs:
+  - url: 'http://app-prometheusbot:9087/alert/<GroupID>'
+
+- name: 'alertNode'
+  webhook_configs:
+  - url: 'http://app-prometheusbot:9087/alert/<GroupID>'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
+

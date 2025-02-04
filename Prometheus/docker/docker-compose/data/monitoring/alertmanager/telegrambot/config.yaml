@@ -1,0 +1,5 @@
+telegram_token: "Meu Token"
+time_zone: "America/Sao_Paulo"
+split_token: "|"
+time_outdata: "04/01/2024 10:24:05"
+split_msg_byte: 10000

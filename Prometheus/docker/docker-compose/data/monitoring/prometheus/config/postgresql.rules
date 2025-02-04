@@ -1,0 +1,13 @@
+groups:
+- name: postgresql
+  rules:
+
+  - alert: postgresql_down
+    expr: pg_up == 0
+    for: 20s
+    labels:
+      severity: hight
+      team: postgresql
+    annotations:
+      summary: "{{ $labels.instance }} down"
+      description: "{{ $labels.instance }} has been down for more than 2 minutes."

@@ -1,0 +1,13 @@
+groups:
+- name: node
+  rules:
+
+  - alert: many_request
+    expr: rate(flip_count[1m]) > 1
+    for: 10s
+    labels:
+      severity: hight
+      team: node
+    annotations:
+      summary: "{{ $labels.instance }} many request"
+      description: "{{ $labels.instance }} many request application node."
