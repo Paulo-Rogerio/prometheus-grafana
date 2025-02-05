@@ -1,14 +1,5 @@
 services:
 
-  app-node:
-    container_name: app-node
-    image: prgs/node:app
-    restart: unless-stopped
-    networks:
-      - metrics
-    ports:
-      - 3001:3001
-
   app-python:
     container_name: app-python
     image: prgs/python:app

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
+count=0
 for i in {6..500};
 do
+  [[ ${count} =~ [0-9]00 ]] && echo "===== sleep =====" && sleep 30;
+
   curl -sSL \
       -H "Content-Type: application/json" \
       -X POST \
@@ -12,5 +15,8 @@ do
           "category": "suspense"
       }' http://localhost:3002/book/create | jq .
 
+  ((count++))
+
   [[ $? -eq 0 ]] && echo "sucessfully" || echo "error"
+
 done
