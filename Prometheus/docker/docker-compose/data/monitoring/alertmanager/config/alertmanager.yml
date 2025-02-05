@@ -12,9 +12,9 @@ route:
     match:
       team: postgresql
       
-  - receiver: 'alertNode'
+  - receiver: 'alertPython'
     match:
-      team: node
+      team: python
 
 receivers:
 - name: 'web.hook'
@@ -25,7 +25,7 @@ receivers:
   webhook_configs:
   - url: 'http://app-prometheusbot:9087/alert/<GroupID>'
 
-- name: 'alertNode'
+- name: 'alertPython'
   webhook_configs:
   - url: 'http://app-prometheusbot:9087/alert/<GroupID>'
 

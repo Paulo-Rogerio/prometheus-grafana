@@ -10,16 +10,12 @@ alerting:
 
 rule_files:
   - postgresql.rules
-  - node.rules
+  - python.rules
 
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
-
-  - job_name: 'app-node'
-    static_configs:
-      - targets: ['app-node:3001']
 
   - job_name: 'app-python'
     static_configs:

@@ -2,10 +2,22 @@ import random
 import uvicorn
 import prometheus_client
 
-from fastapi import FastAPI, HTTPException, Response, Request
+from prometheus_client import Counter
+from fastapi import FastAPI, HTTPException, Response, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+BOOKS = [ 
+	{'id': 1, 'title': 'Titulo1', 'author': 'Author1', 'category': 'drama'},
+    {'id': 2, 'title': 'Titulo2', 'author': 'Author2', 'category': 'drama'},
+	{'id': 3, 'title': 'Titulo3', 'author': 'Author3', 'category': 'terror'},
+	{'id': 4, 'title': 'Titulo4', 'author': 'Author4', 'category': 'misterio'},
+	{'id': 5, 'title': 'Titulo4', 'author': 'Author5', 'category': 'comedia'}
+]
+
+REQUESTS = Counter('http_request_total',
+                   'Total number of requests')
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,48 +26,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-heads_count = prometheus_client.Counter(
-    "heads_count",
-    "Number of heads",
-)
+@app.get(path="/")
+async def index():
+    REQUESTS.inc()
+    return "Home"
 
-tails_count = prometheus_client.Counter(
-    "tails_count",
-    "Number of tails",
-)
+@app.get('/books')
+async def books():
+    REQUESTS.inc()
+    return BOOKS
 
-flip_count = prometheus_client.Counter(
-    "flip_count",
-    "Number of flips",
-)
+@app.get('/books/')
+async def category(search: str):
+    REQUESTS.inc()
+    book_search = []
+    for book in BOOKS:
+    	if book.get('category').casefold() == search.casefold() or \
+           book.get('title').casefold()    == search.casefold() or \
+           book.get('author').casefold()   == search.casefold():
+           book_search.append(book)
+    return book_search 
 
-@app.get("/flip-coins")
-async def flip_coins(times=None):
+@app.get('/book/{id}') 
+async def book(id: int):
+    REQUESTS.inc()
+    for book in BOOKS:
+    	if book.get('id') == id:
+           return book
 
-    if times is None or not times.isdigit():
-        raise HTTPException(
-            status_code=404, 
-            detail="Times must be set in request and an integer"
-        )
+@app.post('/book/create')
+async def create(book=Body()):
+    REQUESTS.inc()
+    BOOKS.append(book)
 
-    times_as_int = int(times)
+@app.put('/book/update')
+async def update(update=Body()):
+    REQUESTS.inc()
+    for i in range(len(BOOKS)):
+        if BOOKS[i].get('title').casefold() == update.get('title').casefold():
+           BOOKS[i] = update
 
-    heads = 0
-    for _ in range(times_as_int):
-        if random.randint(0, 1):
-            heads += 1
-    
-    tails = times_as_int - heads
-
-    heads_count.inc(heads)
-    tails_count.inc(tails)
-    flip_count.inc(times_as_int)
-
-    return {
-        "heads": heads,
-        "tails": tails
-    }
-
+@app.delete('/book/delete')
+async def delete(id: int):
+    REQUESTS.inc()
+    for i in range(len(BOOKS)):
+    	if BOOKS[i].get('id') == id:
+           BOOKS.pop(i)
+           break
 
 @app.get("/metrics")
 async def get_metrics():
