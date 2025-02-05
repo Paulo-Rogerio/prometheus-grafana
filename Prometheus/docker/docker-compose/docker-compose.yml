@@ -28,7 +28,6 @@ services:
     networks:
       - metrics
     depends_on:
-      - app-node
       - app-python
 
   alertmanager:
