@@ -17,8 +17,8 @@ app = FastAPI()
 #-----------------------------
 #
 # Custom metrics
-REQUEST_COUNT = Counter('http_request_total', 'Total HTTP Requests', ['method', 'status', 'path'])
-REQUEST_LATENCY = Histogram('http_request_duration_seconds', 'HTTP Request Duration', ['method', 'status', 'path'])
+REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP Requests', ['method', 'status', 'path'])
+REQUEST_LATENCY = Histogram('http_requests_duration_seconds', 'HTTP Request Duration', ['method', 'status', 'path'])
 REQUEST_IN_PROGRESS = Gauge('http_requests_in_progress', 'HTTP Requests in progress', ['method', 'path'])
 #
 # System metrics
@@ -89,25 +89,33 @@ async def category(search: str):
 @app.get('/book/{id}') 
 async def book(id: int):
     for book in BOOKS:
-    	if book.get('id') == id:
-           return book
+        # Force Error 500
+        if id >= 1000:
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+            return {"status": "Internal Server Error"}
+            break
+
+        if book.get('id') == id:
+            return book
 
 @app.post('/book/create')
 async def create(book=Body()):
     BOOKS.append(book)
+    return book
 
 @app.put('/book/update')
-async def update(update=Body()):
+async def update(book=Body()):
     for i in range(len(BOOKS)):
-        if BOOKS[i].get('title').casefold() == update.get('title').casefold():
-           BOOKS[i] = update
+        if BOOKS[i].get('title').casefold() == book.get('title').casefold():
+           BOOKS[i] = book
+           return book
 
 @app.delete('/book/delete')
 async def delete(id: int):
     for i in range(len(BOOKS)):
     	if BOOKS[i].get('id') == id:
            BOOKS.pop(i)
-           break
+           return {}           
 
 @app.get("/metrics")
 async def metrics():

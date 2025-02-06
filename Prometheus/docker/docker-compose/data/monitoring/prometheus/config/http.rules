@@ -1,0 +1,67 @@
+groups:
+
+  - name: http_alerts
+    interval: 30s
+    rules:
+
+    #-----------------------
+    # Se um endpoint estiver recebendo mais de 200 requisições por minuto, este alerta será acionado.
+    # Útil para detectar picos de tráfego inesperados.
+    # Calculo Rate ( Requisiçoes / 60s )
+    #-----------------------
+    - alert: HighHTTPRequestRate
+      expr: rate(http_requests_total[1m]) > 3
+      for: 1m
+      labels:
+        severity: warning
+        team: python
+      annotations:
+        summary: "Alta taxa de requisições HTTP"
+        description: "O serviço {{ $labels.job }} está recebendo mais de 200 requisições por minuto."
+
+    #------------------------
+    # Alta Taxa de Erros HTTP 5xx (Falha no Servidor)
+    # Se houver mais de 5 erros HTTP 5xx por minuto nos últimos 5 minutos, o alerta será disparado.
+    # 120 Conexoes por minuto retornando Erro 500 
+    #------------------------
+    - alert: HighHTTPErrorRate
+      expr: rate(http_requests_total[1m]) > 2
+      for: 1m
+      labels:
+        severity: critical
+        team: python
+      annotations:
+        summary: "Alta taxa de erros HTTP 5xx"
+        description: "O serviço {{ $labels.job }} tem mais de 5 erros 5xx por minuto nos últimos 5 minutos."
+
+    #------------------------
+    # Latência Alta em Requisições HTTP
+    # Se o tempo médio de resposta das requisições for maior que 2 segundos nos últimos 5 minutos, 
+    # o alerta é acionado.
+    #------------------------
+    - alert: HighHTTPLatency
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+      for: 1m
+      labels:
+        severity: warning
+        team: python
+      annotations:
+        summary: "Latência HTTP alta"
+        description: "95% das requisições para {{ $labels.job }} estão demorando mais de 2 segundos."
+
+    #-------------------------
+    # Muitas Respostas HTTP 4xx (Erros do Cliente)
+    # Se houver mais de 50 erros HTTP 4xx por minuto nos últimos 5 minutos, 
+    # pode indicar um problema de API ou ataques.
+    # Ajuda a identificar falhas na API ou abuso de clientes.
+    # 120 Conexoes por minuto retornando Erro 400
+    #-------------------------
+    - alert: HighHTTPClientErrors
+      expr: rate(http_requests_total{status=~"4.."}[1m]) > 2
+      for: 1m
+      labels:
+        severity: warning
+        team: python
+      annotations:
+        summary: "Muitas respostas HTTP 4xx"
+        description: "O serviço {{ $labels.job }} está retornando mais de 50 erros 4xx por minuto."

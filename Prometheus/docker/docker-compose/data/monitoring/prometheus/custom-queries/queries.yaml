@@ -1,0 +1,16 @@
+prgs_pg_version:
+  query: "SHOW server_version;"
+  master: true
+  metrics:
+    - prgs_server_version:
+        usage: "LABEL"
+        description: "PG Version"
+
+prgs_pg_settings:
+  query:
+    SELECT count(*) as qtd_pending_restart FROM pg_settings WHERE pending_restart;
+  master: true
+  metrics:
+    - prgs_pending_restart:
+        usage: "GAUGE"
+        description: "Qtd Pendind Restart"

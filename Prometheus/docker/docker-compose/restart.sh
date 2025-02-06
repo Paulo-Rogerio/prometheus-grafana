@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
 
-docker-compose down && docker-compose up -d 
+cd $(dirname $0)
+
+docker-compose down \
+&& sh clean.sh \
+&& docker-compose up -d 
