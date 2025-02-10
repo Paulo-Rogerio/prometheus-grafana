@@ -23,11 +23,11 @@ receivers:
 
 - name: 'alertPostgresql'
   webhook_configs:
-  - url: 'http://app-prometheusbot:9087/alert/-4748555601'
+  - url: 'http://app-prometheusbot:9087/alert/'
 
 - name: 'alertPython'
   webhook_configs:
-  - url: 'http://app-prometheusbot:9087/alert/-4613893185'
+  - url: 'http://app-prometheusbot:9087/alert/'
 
 inhibit_rules:
   - source_match:
