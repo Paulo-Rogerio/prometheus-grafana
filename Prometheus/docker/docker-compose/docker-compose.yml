@@ -1,4 +1,37 @@
+x-logging: &default-logging
+  driver: loki
+  options:
+    loki-url: 'http://localhost:3100/api/prom/push'
+    loki-pipeline-stages: |
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2}'
+          max_wait_time: 3s
+      - regex:
+          expression: '^(?P<time>\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2},\d{3}) (?P<message>(?s:.*))$$'
+
 services:
+
+  loki:
+    container_name: loki
+    image: grafana/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - metrics
+    ports:
+      - 3100:3100
+
+  tempo:
+    image: grafana/tempo
+    container_name: tempo
+    command: [ "--target=all", "--storage.trace.backend=local", "--storage.trace.local.path=/var/tempo", "--auth.enabled=false" ]
+    networks:
+      - metrics
+    ports:
+      - 4317:4317
+      - 4318:4318
+    depends_on:
+      - loki
+    logging: *default-logging
 
   app-python:
     container_name: app-python
@@ -10,6 +43,11 @@ services:
       - ./data/monitoring/timezone/localtime:/etc/localtime
     ports:
       - 3002:3002
+    environment:
+      APP_NAME: "app-books"
+    depends_on:
+      - loki
+    logging: *default-logging  
 
   prometheus:
     image: prom/prometheus
@@ -34,6 +72,8 @@ services:
       - metrics
     depends_on:
       - app-python
+      - loki
+    logging: *default-logging     
 
   alertmanager:
     image: prom/alertmanager
@@ -52,6 +92,7 @@ services:
       mode: global
     networks:
       - metrics
+    logging: *default-logging
 
   app-prometheusbot:
     container_name: app-prometheusbot
@@ -62,8 +103,7 @@ services:
       - ./data/monitoring/alertmanager/telegrambot/config.yaml:/config.yaml
     networks:
       - metrics
-    ports:
-      - 9087:9087
+    logging: *default-logging  
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
@@ -81,6 +121,7 @@ services:
     networks:
       - metrics
     restart: unless-stopped
+    logging: *default-logging
 
   postgres:
     image: postgres:17-alpine
@@ -112,12 +153,11 @@ services:
       interval: 3s
       timeout: 6s
       retries: 10
+    logging: *default-logging
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter
     container_name: postgres-exporter
-    ports:
-      - 9187:9187
     environment:
       DATA_SOURCE_NAME: "postgresql://grafana:grafana@postgres:5432/?sslmode=disable"
       PG_EXPORTER_EXTEND_QUERY_PATH: "/queries/queries.yaml"
@@ -128,6 +168,7 @@ services:
       - ./data/monitoring/timezone/localtime:/etc/localtime
     depends_on:
       - postgres
+    logging: *default-logging   
 
   grafana:
     image: grafana/grafana:latest
@@ -145,12 +186,14 @@ services:
       - metrics    
     depends_on:
       - postgres
+      - loki 
     ports:
       - 3000:3000
     volumes:
       - ./data/monitoring/timezone/localtime:/etc/localtime
       - ./data/monitoring/grafana/data:/var/lib/grafana
-      - ./data/monitoring/grafana/provisioning/:/etc/grafana/provisioning/      
+      - ./data/monitoring/grafana/provisioning/:/etc/grafana/provisioning/
+    logging: *default-logging
 
 networks:
   metrics:

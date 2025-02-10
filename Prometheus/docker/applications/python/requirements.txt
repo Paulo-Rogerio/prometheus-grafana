@@ -5,7 +5,12 @@ exceptiongroup==1.2.2
 fastapi==0.115.8
 grpcio==1.70.0
 h11==0.14.0
+httpx==0.28.1
 idna==3.10
+opentelemetry-distro==0.51b0
+opentelemetry-instrumentation-fastapi==0.51b0
+opentelemetry-instrumentation-logging==0.51b0
+opentelemetry-exporter-otlp==1.30.0
 prometheus_client==0.21.1
 psutil==6.1.1
 py-grpc-prometheus==0.8.0

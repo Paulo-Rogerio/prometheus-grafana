@@ -1,58 +1,36 @@
+import httpx
+import logging
+import os
 import random
-import prometheus_client
-import psutil
-import uvicorn
 import time
+import uvicorn
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
 from fastapi import FastAPI, HTTPException, Response, Request, Body
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import Response
-from pydantic import BaseModel
+from opentelemetry.propagate import inject
+from typing import Optional
+from utils import PrometheusMiddleware, metrics, setting_otlp
+
+APP_NAME = os.environ.get("APP_NAME", "app-books")
+EXPOSE_PORT = os.environ.get("EXPOSE_PORT", 3002)
+OTLP_GRPC_ENDPOINT = os.environ.get("OTLP_GRPC_ENDPOINT", "http://tempo:4317")
 
 app = FastAPI()
 
 #-----------------------------
-# Instrument Prometheus Client
+# Instrument Prometheus
 #-----------------------------
-#
-# Custom metrics
-REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP Requests', ['method', 'status', 'path'])
-REQUEST_LATENCY = Histogram('http_requests_duration_seconds', 'HTTP Request Duration', ['method', 'status', 'path'])
-REQUEST_IN_PROGRESS = Gauge('http_requests_in_progress', 'HTTP Requests in progress', ['method', 'path'])
-#
-# System metrics
-CPU_USAGE = Gauge('process_cpu_usage', 'Current CPU usage in percent')
-MEMORY_USAGE = Gauge('process_memory_usage_bytes', 'Current memory usage in bytes')
+app.add_middleware(PrometheusMiddleware, app_name=APP_NAME)
 
-def update_system_metrics():
-    CPU_USAGE.set(psutil.cpu_percent())
-    MEMORY_USAGE.set(psutil.Process().memory_info().rss)
+app.add_route("/metrics", metrics)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+setting_otlp(app, APP_NAME, OTLP_GRPC_ENDPOINT)
 
-@app.middleware("http")
-async def monitor_requests(request: Request, call_next):
-    method = request.method
-    path = request.url.path
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage().find("GET /metrics") == -1
 
-    REQUEST_IN_PROGRESS.labels(method=method, path=path).inc()
-    
-    start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
-    
-    status = response.status_code
-    REQUEST_COUNT.labels(method=method, status=status, path=path).inc()
-    REQUEST_LATENCY.labels(method=method, status=status, path=path).observe(duration)
-    REQUEST_IN_PROGRESS.labels(method=method, path=path).dec()
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
-    return response
 
 #-----------------------------
 # Dynamic Database
@@ -70,10 +48,12 @@ BOOKS = [
 #-----------------------------
 @app.get(path="/")
 async def index():
+    logging.info("Home Index")
     return "Home"
 
 @app.get('/books')
 async def books():
+    logging.info("Read all books")
     return BOOKS
 
 @app.get('/books/')
@@ -84,6 +64,7 @@ async def category(search: str):
            book.get('title').casefold()    == search.casefold() or \
            book.get('author').casefold()   == search.casefold():
            book_search.append(book)
+    logging.info("Read book {book_search}")
     return book_search 
 
 @app.get('/book/{id}') 
@@ -93,14 +74,17 @@ async def book(id: int):
         if id >= 1000:
             raise HTTPException(status_code=500, detail="Internal Server Error")
             return {"status": "Internal Server Error"}
+            logging.error("Error Id greater than 1000 !!!!")
             break
 
         if book.get('id') == id:
+            logging.info("Read book with Id {book}")
             return book
 
 @app.post('/book/create')
 async def create(book=Body()):
     BOOKS.append(book)
+    logging.info("Create book {book}")
     return book
 
 @app.put('/book/update')
@@ -108,6 +92,7 @@ async def update(book=Body()):
     for i in range(len(BOOKS)):
         if BOOKS[i].get('title').casefold() == book.get('title').casefold():
            BOOKS[i] = book
+           logging.info("Update book {book}")
            return book
 
 @app.delete('/book/delete')
@@ -115,19 +100,14 @@ async def delete(id: int):
     for i in range(len(BOOKS)):
     	if BOOKS[i].get('id') == id:
            BOOKS.pop(i)
+           logging.info("Delete book {BOOKS[i]}")
            return {}           
-
-@app.get("/metrics")
-async def metrics():
-    update_system_metrics()
-    return Response(
-        generate_latest(REGISTRY), 
-        media_type=CONTENT_TYPE_LATEST
-    )
 
 #-----------------------------
 # Entrypoint Application
 #-----------------------------
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3002)    
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace_id=%(otelTraceID)s span_id=%(otelSpanID)s resource.service.name=%(otelServiceName)s] - %(message)s"
+    uvicorn.run(app, host="0.0.0.0", port=EXPOSE_PORT, log_config=log_config)
