@@ -4,5 +4,5 @@ cd $(dirname $0)
 
 docker build \
 --no-cache \
--t prgs/python:app \
+-t prgs/backend-books:app \
 -f Dockerfile .

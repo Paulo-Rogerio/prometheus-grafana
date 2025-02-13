@@ -132,22 +132,14 @@ services:
     networks:
       - metrics      
     environment:
-      POSTGRES_USER: grafana
-      POSTGRES_DB: grafana
-      POSTGRES_PASSWORD: grafana
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_MULTIPLE_DATABASES: books, grafana     
       POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 scram-sha-256"
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     volumes:
       - ./data/monitoring/timezone/localtime:/etc/localtime
       - ./data/postgresql/pgdata:/var/lib/postgresql/data      
-    command: |
-      postgres
-      -c wal_level=logical
-      -c hot_standby=on
-      -c max_wal_senders=10
-      -c max_replication_slots=10
-      -c hot_standby_feedback=on
-      -c shared_preload_libraries=pg_stat_statements
+      - ./data/postgresql/multiple-databases.sh:/docker-entrypoint-initdb.d/multiple-databases.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready", "-d", "grafana"]
       interval: 3s

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+count=0
+for i in {0..10};
+do
+  [[ ${count} =~ [0-9]00 ]] && echo "===== sleep =====" && sleep 10;
+
+  curl -sSL -H "Content-Type: application/json"  http://localhost:3002/book/\?search\=Titulo${i} | jq .
+    
+  ((count++))
+done
