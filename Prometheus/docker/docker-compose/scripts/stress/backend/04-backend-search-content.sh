@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 count=0
-for i in {1..10};
+for i in {1..1000};
 do
   [[ ${count} =~ [0-9]000 ]] && echo "===== sleep =====" && sleep 10;
    curl \

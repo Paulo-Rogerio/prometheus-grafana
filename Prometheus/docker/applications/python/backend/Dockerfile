@@ -1,6 +1,4 @@
-FROM python:3.9
-
-RUN apt update && apt install -y postgresql-client
+FROM python:3.13.1
 
 RUN pip install --root-user-action=ignore --upgrade pip 
 

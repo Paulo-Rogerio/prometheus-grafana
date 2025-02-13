@@ -57,7 +57,7 @@ MEMORY_USAGE = Gauge(
 )
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: ASGIApp, app_name: str = "fastapi-app") -> None:
+    def __init__(self, app: ASGIApp, app_name: str = "frontend") -> None:
         super().__init__(app)
         self.app_name = app_name
         INFO.labels(app_name=self.app_name).inc()
